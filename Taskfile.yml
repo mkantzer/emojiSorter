@@ -2,13 +2,16 @@
 # https://taskfile.dev/
 version: '3'
 
+vars:
+  JSON_PRETTY: jq -R -r '. as $line | try fromjson catch $line'
+
 tasks:
   start:
     desc: Run the app
     deps: [build]
     cmds:
       # pretty-print any json, else just print
-      - docker compose up --no-log-prefix -- app | jq -R -r '. as $line | try fromjson catch $line'
+      - docker compose up --no-log-prefix -- app | {{.JSON_PRETTY}}
 
   stop:
     desc: Stop the application
@@ -45,7 +48,7 @@ tasks:
       - go.sum
       - ./*.go
     cmds:
-      - docker-compose build app
+      - docker-compose build -q app
 
   # build:dev:
   #   desc: Build the development image

@@ -23,15 +23,6 @@ func main() {
 
 	sugar.Info("logger constrcution succeeded")
 
-	// sugar.Infow("failed to fetch URL",
-	// 	// Structured context as loosely typed key-value pairs.
-	// 	"url", url,
-	// 	"attempt", 3,
-	// 	"backoff", time.Second,
-	// )
-
-	// 	sugar.Infof("Failed to fetch URL: %s", url)
-
 	// create notion database client
 	notionAPIKey, ok := os.LookupEnv("NOTION_API_KEY")
 	if !ok {
@@ -54,4 +45,30 @@ func main() {
 		"dbID", dbID,
 		"Title", database.Title[0].PlainText,
 	)
+	// Querry database for all non-voted emoji
+	query := notion.DatabaseQuery{
+		Filter: &notion.DatabaseQueryFilter{
+			Property: "Total Votes",
+			Number: &notion.NumberDatabaseQueryFilter{
+				Equals: notion.IntPtr(0),
+			},
+		},
+		// Sorts:       []notion.DatabaseQuerySort{},
+		StartCursor: "",
+		PageSize:    0,
+	}
+
+	response, err := client.QueryDatabase(context.Background(), dbID, &query)
+	if err != nil {
+		sugar.Errorw("query failed",
+			"error", err,
+			"query", query,
+			"dbID", dbID,
+		)
+	}
+	sugar.Infow("query succeeded",
+		"numResults", len(response.Results),
+	)
+	// sugar.Infow("Retrieved non-voted emoji",
+
 }
