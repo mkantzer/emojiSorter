@@ -3,24 +3,32 @@ version: "3"
 x-app-vars:
   &default-app-vars
   NOTION_API_KEY: ${NOTION_API_KEY}
+  NOTION_DB_ID: ${NOTION_DB_ID}
 
 x-build:
   &default-build
   context: .
   dockerfile: Dockerfile
   cache_from:
-    - ${APP_NAME}/preloader:latest
-    - ${APP_NAME}/preloader:${TAG:-local}
-    - ${APP_NAME}/builder:latest
+    # - ${APP_NAME}/preloader:latest
+    # - ${APP_NAME}/preloader:${TAG:-local}
+    # - ${APP_NAME}/builder:latest
     - ${APP_NAME}/builder:${TAG:-local}
-    - ${APP_NAME}/tester-builder:latest
-    - ${APP_NAME}/tester-builder:${TAG:-local}
 
 services:
   app:
     image: ${APP_NAME}/runtime:${TAG:-local}
     build:
       target: runtime
+      << : *default-build
+    environment: 
+      << : *default-app-vars
+
+
+  builder:
+    image: ${APP_NAME}/builder:${TAG:-local}
+    build:
+      target: builder
       << : *default-build
     environment: 
       << : *default-app-vars

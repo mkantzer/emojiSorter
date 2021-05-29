@@ -11,11 +11,6 @@ RUN go get github.com/go-delve/delve/cmd/dlv@v1
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=$GOPATH/pkg/mod go mod download
 
-# To prime the import cache:
-# `go generate ./...` outside of container
-# COPY ./internal/imports ./internal/imports
-# RUN go build ./internal/imports
-
 # Build binary
 COPY . .
 RUN go build -o app

@@ -1,0 +1,111 @@
+
+# https://taskfile.dev/
+version: '3'
+
+tasks:
+  start:
+    desc: Run the app
+    deps: [build]
+    cmds:
+      # pretty-print any json, else just print
+      - docker compose up --no-log-prefix -- app | jq -R -r '. as $line | try fromjson catch $line'
+
+  stop:
+    desc: Stop the application
+    cmds:
+      - docker-compose down
+
+#############################################
+############ Test / Format ##################
+
+  lint:
+    desc: Runs black and isort in container
+    deps: [build:linter]
+    cmds:
+      - docker-compose run -- linter
+
+  test:
+    desc: Runs pytest in container
+    deps: [build:unit-tester]
+    cmds:
+      - docker-compose run -- unit-tester
+
+
+#############################################
+############ Build Images !##################
+
+  build:
+    desc: Build the production image
+    deps: [build:builder]
+    sources:
+      - Dockerfile
+      - docker-compose.yml
+      - Taskfile.yml
+      - go.mod
+      - go.sum
+      - ./*.go
+    cmds:
+      - docker-compose build app
+
+  # build:dev:
+  #   desc: Build the development image
+  #   deps: [build:builder]
+  #   cmds:
+  #     - docker-compose build dev-runtime
+
+  # build:linter:
+  #   desc: Build the linting image
+  #   deps: [build:tester-builder]
+  #   cmds:
+  #     - docker-compose build linter
+
+  build:unit-tester:
+    desc: Build the unit-tester image
+    deps: [build:tester-builder]
+    cmds:
+      - docker-compose build unit-tester
+
+  build:builder:
+    desc: Build the builder image
+    # deps: [build:preloader]
+    sources:
+      - Dockerfile
+      - docker-compose.yml
+      - Taskfile.yml
+      - go.mod
+      - go.sum
+    cmds:
+      - docker-compose build builder
+
+  # build:tester-builder:
+  #   desc: Build the tester-builder image
+  #   deps: [build:builder]
+  #   sources:
+  #     - Dockerfile
+  #     - docker-compose.yml
+  #     - Taskfile.yml
+  #     - requirements.txt
+  #     - lib/
+  #     - pytest.ini
+  #     - isort.cfg
+  #     - dev-requirements.txt
+  #   cmds:
+  #     - docker-compose build tester-builder
+
+  # build:preloader:
+  #   desc: Build the Preloader image
+  #   sources:
+  #     - Dockerfile
+  #     - docker-compose.yml
+  #     - Taskfile.yml
+  #     - requirements.txt
+  #   cmds:
+  #     - docker-compose build preloader
+
+
+
+  cleanup:
+    desc: clean up docker environment
+    cmds:
+      - docker-compose down -v
+      - rm -rf .task
