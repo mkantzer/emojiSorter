@@ -7,14 +7,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/dstotijn/go-notion"
 	"go.uber.org/zap"
 )
 
 func main() {
 
-	// logger, err := zap.NewDevelopment()
 	logger, err := zap.NewProduction()
 
 	if err != nil {
@@ -56,25 +54,29 @@ func main() {
 
 	sugar.Infow("vote found",
 		"name", nextVote.name,
-		"image", nextVote.image,
+		"imageURL", nextVote.imageURL,
 	)
 }
 
 type emoji struct {
-	name  string
-	image string
+	name     string
+	imageURL string
+	aliasFor string
 }
 
 // FindVoteTarget queries the datastore for an emoji to vote on. It retrieves a single emoji that has the lowest number of total votes
 func FindVoteTarget(ctx context.Context, client *notion.Client, dbID string) (emoji, error) {
 	// Query for a single emoji that fits "least number of total votes"
 	query := notion.DatabaseQuery{
-		// Filter: &notion.DatabaseQueryFilter{
-		// 	Property: "Total Votes",
-		// 	Number: &notion.NumberDatabaseQueryFilter{
-		// 		Equals: notion.IntPtr(0),
-		// 	},
-		// },
+		Filter: &notion.DatabaseQueryFilter{
+			Property: "Name",
+			Text: &notion.TextDatabaseQueryFilter{
+				Equals: "000",
+			},
+			Number: &notion.NumberDatabaseQueryFilter{
+				Equals: notion.IntPtr(0),
+			},
+		},
 		Sorts: []notion.DatabaseQuerySort{{
 			Property:  "Total Votes",
 			Direction: "descending",
@@ -85,16 +87,36 @@ func FindVoteTarget(ctx context.Context, client *notion.Client, dbID string) (em
 
 	response, err := client.QueryDatabase(ctx, dbID, &query)
 	if err != nil {
-		return emoji{}, fmt.Errorf("Error finding a vote target: %v", err)
+		return emoji{}, err
 	}
 	if len(response.Results) == 0 {
-		return emoji{}, errors.New("Did not find a vote target")
+		return emoji{}, errors.New("did not find a vote target")
 	}
 	if len(response.Results) > 1 {
-		return emoji{}, errors.New("Found too many vote targets")
+		return emoji{}, errors.New("found too many vote targets")
 	}
 
-	spew.Dump(response.Results[0].Properties)
+	emojiPage := response.Results[0]
+	emojiMap := emojiPage.Properties.(notion.DatabasePageProperties)
 
-	return emoji{}, nil
+	nameProperty, ok := emojiMap["Name"]
+	if !ok {
+		return emoji{}, errors.New("returned page does not have section 'name'")
+	}
+	if nameProperty.Type != notion.DBPropTypeTitle {
+		return emoji{}, fmt.Errorf("returned 'Name' property does not have Type %s", notion.DBPropTypeTitle)
+	}
+
+	imageProperty, ok := emojiMap["Image"]
+	if !ok {
+		return emoji{}, errors.New("returned page does not have section 'Image'")
+	}
+	if imageProperty.Type != notion.DBPropTypeFiles {
+		return emoji{}, fmt.Errorf("returned 'Image' property does not have Type %s", notion.DBPropTypeFiles)
+	}
+
+	return emoji{
+		name:     nameProperty.Title[0].PlainText,
+		imageURL: imageProperty.Files[0].Name,
+	}, nil
 }

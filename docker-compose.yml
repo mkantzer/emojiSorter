@@ -25,6 +25,15 @@ services:
       << : *default-app-vars
 
 
+  linter:
+    image: ${APP_NAME}/linter:${TAG:-local}
+    build:
+      target: linter
+      << : *default-build
+    volumes:
+      - ./:/build/
+
+
   builder:
     image: ${APP_NAME}/builder:${TAG:-local}
     build:

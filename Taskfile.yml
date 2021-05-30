@@ -4,11 +4,20 @@ version: '3'
 
 vars:
   JSON_PRETTY: jq -R -r '. as $line | try fromjson catch $line'
+  # NOTE: docker builds produce a lot of output that devs don't really care about.
+  # Therefor, we surpress the output of any build caused by a `dep`.
+  # In the case of a failure, manually run the failed dep to get output.
+  QUIET_BUILD_PIPES: 2>&1 | grep -v '^#' | grep -v -e '^$' | grep -v '^Use'
+  # QUIET: 0
+
 
 tasks:
   start:
     desc: Run the app
-    deps: [build]
+    deps: 
+      - task: build
+        vars: 
+          QUIET: 1
     cmds:
       # pretty-print any json, else just print
       - docker compose up --no-log-prefix -- app | {{.JSON_PRETTY}}
@@ -23,9 +32,12 @@ tasks:
 
   lint:
     desc: Runs black and isort in container
-    deps: [build:linter]
+    deps: 
+      - task: build:linter
+        vars: 
+          QUIET: 1
     cmds:
-      - docker-compose run -- linter
+      - docker-compose up --no-log-prefix -- linter
 
   test:
     desc: Runs pytest in container
@@ -39,7 +51,10 @@ tasks:
 
   build:
     desc: Build the production image
-    deps: [build:builder]
+    deps:
+      - task: build:builder
+        vars: 
+          QUIET: 1
     sources:
       - Dockerfile
       - docker-compose.yml
@@ -48,25 +63,33 @@ tasks:
       - go.sum
       - ./*.go
     cmds:
-      - docker-compose build -q app
+      - docker-compose build app {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   # build:dev:
   #   desc: Build the development image
   #   deps: [build:builder]
   #   cmds:
-  #     - docker-compose build dev-runtime
+  #     - docker-compose build dev-runtime {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
-  # build:linter:
-  #   desc: Build the linting image
-  #   deps: [build:tester-builder]
-  #   cmds:
-  #     - docker-compose build linter
+  build:linter:
+    desc: Build the linting image
+    deps:
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    sources:
+      - ./*.go
+    cmds:
+      - docker-compose build -- linter {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   build:unit-tester:
     desc: Build the unit-tester image
-    deps: [build:tester-builder]
+    deps: 
+      - task: build:builder
+        vars: 
+          QUIET: 1
     cmds:
-      - docker-compose build unit-tester
+      - docker-compose build unit-tester {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   build:builder:
     desc: Build the builder image
@@ -78,7 +101,7 @@ tasks:
       - go.mod
       - go.sum
     cmds:
-      - docker-compose build builder
+      - docker-compose build builder {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   # build:tester-builder:
   #   desc: Build the tester-builder image
@@ -93,7 +116,7 @@ tasks:
   #     - isort.cfg
   #     - dev-requirements.txt
   #   cmds:
-  #     - docker-compose build tester-builder
+  #     - docker-compose build tester-builder {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   # build:preloader:
   #   desc: Build the Preloader image
@@ -103,7 +126,7 @@ tasks:
   #     - Taskfile.yml
   #     - requirements.txt
   #   cmds:
-  #     - docker-compose build preloader
+  #     - docker-compose build preloader {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
 
 
