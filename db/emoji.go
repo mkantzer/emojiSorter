@@ -21,15 +21,6 @@ type Emoji struct {
 func FindVoteTarget(ctx context.Context, client *notion.Client, dbID string) (Emoji, error) {
 	// Query for a single emoji that fits "least number of total votes"
 	query := notion.DatabaseQuery{
-		Filter: &notion.DatabaseQueryFilter{
-			Property: "Name",
-			Text: &notion.TextDatabaseQueryFilter{
-				Equals: "000",
-			},
-			Number: &notion.NumberDatabaseQueryFilter{
-				Equals: notion.IntPtr(0),
-			},
-		},
 		Sorts: []notion.DatabaseQuerySort{{
 			Property:  "Total Votes",
 			Direction: "descending",
@@ -65,9 +56,6 @@ func GetEmojiDataByName(ctx context.Context, client *notion.Client, dbID, name s
 			Property: "Name",
 			Text: &notion.TextDatabaseQueryFilter{
 				Equals: name,
-			},
-			Number: &notion.NumberDatabaseQueryFilter{
-				Equals: notion.IntPtr(0),
 			},
 		},
 		StartCursor: "",
