@@ -41,9 +41,12 @@ tasks:
 
   test:
     desc: Runs pytest in container
-    deps: [build:unit-tester]
+    deps: 
+      - task: build:tester
+        vars: 
+          QUIET: 1
     cmds:
-      - docker-compose run -- unit-tester
+      - docker-compose up --no-log-prefix -- tester
 
 
 #############################################
@@ -82,14 +85,14 @@ tasks:
     cmds:
       - docker-compose build -- linter {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
-  build:unit-tester:
+  build:tester:
     desc: Build the unit-tester image
     deps: 
       - task: build:builder
         vars: 
           QUIET: 1
     cmds:
-      - docker-compose build unit-tester {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+      - docker-compose build tester {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   build:builder:
     desc: Build the builder image

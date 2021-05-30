@@ -24,7 +24,14 @@ services:
       << : *default-build
     environment: 
       << : *default-app-vars
+    ports:
+      - 8080:8080
 
+  tester:
+    image: ${APP_NAME}/runtime:${TAG:-local}
+    build:
+      target: tester
+      << : *default-build
 
   linter:
     image: ${APP_NAME}/linter:${TAG:-local}
@@ -33,7 +40,6 @@ services:
       << : *default-build
     volumes:
       - ./:/build/
-
 
   builder:
     image: ${APP_NAME}/builder:${TAG:-local}

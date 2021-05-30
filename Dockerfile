@@ -18,14 +18,13 @@ RUN go build -o app
 FROM builder AS linter
 ENTRYPOINT [ "go", "fmt" ]
 
-FROM builder AS debug
+FROM builder AS debugger
 ENTRYPOINT [ "dlv", "-l", ":40000", "--headless=true", "--api-version=2", "exec", "./app", "--" ] 
 
-# To execute tests: `docker run --rm $(docker build -q --target test .)`
-FROM builder AS test
+FROM builder AS tester
 CMD go test -v ./...
 
-FROM test as debugTests
+FROM test as test-debugger
 CMD dlv -l :40000 --headless=true --api-version=2 test -test.v ./...
 
 FROM gcr.io/distroless/base:nonroot AS runtime
