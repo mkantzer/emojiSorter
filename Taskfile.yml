@@ -50,7 +50,7 @@ tasks:
 ############ Build Images !##################
 
   build:
-    desc: Build the production image
+    desc: Build the production images
     deps:
       - task: build:builder
         vars: 
@@ -61,7 +61,7 @@ tasks:
       - Taskfile.yml
       - go.mod
       - go.sum
-      - ./*.go
+      - ./**/*.go
     cmds:
       - docker-compose build app {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 

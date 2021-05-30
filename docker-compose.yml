@@ -4,6 +4,7 @@ x-app-vars:
   &default-app-vars
   NOTION_API_KEY: ${NOTION_API_KEY}
   NOTION_DB_ID: ${NOTION_DB_ID}
+  APP_VERSION: LOCAL
 
 x-build:
   &default-build
