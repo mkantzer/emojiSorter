@@ -15,6 +15,9 @@ RUN --mount=type=cache,target=$GOPATH/pkg/mod go mod download
 COPY . .
 RUN go build -o app
 
+FROM builder AS linter
+ENTRYPOINT [ "go", "fmt" ]
+
 FROM builder AS debug
 ENTRYPOINT [ "dlv", "-l", ":40000", "--headless=true", "--api-version=2", "exec", "./app", "--" ] 
 
@@ -24,7 +27,6 @@ CMD go test -v ./...
 
 FROM test as debugTests
 CMD dlv -l :40000 --headless=true --api-version=2 test -test.v ./...
-
 
 FROM gcr.io/distroless/base:nonroot AS runtime
 USER nonroot
