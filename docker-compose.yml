@@ -18,14 +18,23 @@ x-build:
 
 services:
   app:
-    image: ${APP_NAME}/runtime:${TAG:-local}
+    image: ${APP_NAME}/server:${TAG:-local}
     build:
-      target: runtime
+      target: server
       << : *default-build
     environment: 
       << : *default-app-vars
     ports:
       - 8080:8080
+
+  cli:
+    image: ${APP_NAME}/cli:${TAG:-local}
+    build:
+      target: cli
+      << : *default-build
+    environment: 
+      << : *default-app-vars
+
 
   tester:
     image: ${APP_NAME}/runtime:${TAG:-local}

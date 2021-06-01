@@ -20,7 +20,16 @@ tasks:
           QUIET: 1
     cmds:
       # pretty-print any json, else just print
-      - docker compose up --no-log-prefix -- app | {{.JSON_PRETTY}}
+      - docker-compose up --no-log-prefix -- app | {{.JSON_PRETTY}}
+
+  cli:
+    desc: Run the app as cli
+    deps:
+      - task: build:cli
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix --exit-code-from cli -- cli | {{.JSON_PRETTY}}
 
   stop:
     desc: Stop the application
@@ -67,6 +76,22 @@ tasks:
       - ./**/*.go
     cmds:
       - docker-compose build app {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:cli:
+    desc: Build the production images
+    deps:
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    sources:
+      - Dockerfile
+      - docker-compose.yml
+      - Taskfile.yml
+      - go.mod
+      - go.sum
+      - ./**/*.go
+    cmds:
+      - docker-compose build cli {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   # build:dev:
   #   desc: Build the development image

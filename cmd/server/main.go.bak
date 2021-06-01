@@ -10,9 +10,22 @@ import (
 
 	"github.com/dstotijn/go-notion"
 	"github.com/gorilla/mux"
-	"github.com/mkantzer/emojiSorter/db"
+	"github.com/mkantzer/emojiSorter/internal/api"
+	"github.com/mkantzer/emojiSorter/internal/db"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
+
+type app_info struct {
+	App     string
+	Version string
+}
+
+func (a app_info) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("app", a.App)
+	enc.AddString("version", a.Version)
+	return nil
+}
 
 func main() {
 
@@ -26,12 +39,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
+	zap.ReplaceGlobals(logger)
 	defer logger.Sync() // flushes buffer, if any
 
+	app := &app_info{
+		App:     "emojiSorter",
+		Version: os.Getenv("APP_VERSION"),
+	}
+
 	sugar := logger.Sugar().With(
-		"app", "emojiSorter",
-		"version", os.Getenv("APP_VERSION"),
-	)
+		zap.Object("app_info", app))
 	sugar.Info("logger constrcution succeeded")
 
 	/*
@@ -79,13 +96,17 @@ func main() {
 	wait := time.Duration(time.Second * 5)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/healthz", HealthCheckHandler)
-	r.HandleFunc("/", DummyHandler)
+	r.HandleFunc("/healthz", api.HealthCheckHandler)
+	r.HandleFunc("/", api.DummyHandler)
 	// r.HandleFunc("/", VotingHandler)
 	// r.HandleFunc("/emoji/{name}", SpecificEmojiHandler)
 	// r.HandleFunc("/results", ResultHandler)
 
+	// addLoggingMiddleware := api.LoggingMiddleware(sugar)
+	// loggedRouter := addLoggingMiddleware(r)
+
 	srv := &http.Server{
+		// Handler: loggedRouter,
 		Handler: r,
 		Addr:    "0.0.0.0:8080",
 		// Good practice: enforce timeouts for servers you create!
@@ -120,6 +141,5 @@ func main() {
 	// <-ctx.Done() if your application should wait for other services
 	// to finalize based on context cancellation.
 	sugar.Info("shutting down")
-	sugar.Sync()
 	os.Exit(0)
 }
