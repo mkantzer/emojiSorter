@@ -7,3 +7,6 @@ Repo structure: https://peter.bourgon.org/go-best-practices-2016/#repository-str
 or:
 
 https://github.com/golang-standards/project-layout
+
+OR!
+https://medium.com/@matiasvarela/hexagonal-architecture-in-go-cfd4e436faa3
