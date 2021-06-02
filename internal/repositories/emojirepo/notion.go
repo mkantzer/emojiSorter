@@ -21,7 +21,6 @@ type notionDB struct {
 
 // New returns a new NotionDB struct
 func NewNotionDB() (notionDB, error) {
-
 	// create notion database client
 	notionAPIKey, ok := os.LookupEnv("NOTION_API_KEY")
 	if !ok {
@@ -40,7 +39,7 @@ func NewNotionDB() (notionDB, error) {
 	}, nil
 }
 
-func (repo *notionDB) Get(ctx context.Context, name string) (domain.Emoji, error) {
+func (repo notionDB) Get(name string) (domain.Emoji, error) {
 	// Query for a single emoji that fits "least number of total votes"
 	query := notion.DatabaseQuery{
 		Filter: &notion.DatabaseQueryFilter{
@@ -52,7 +51,7 @@ func (repo *notionDB) Get(ctx context.Context, name string) (domain.Emoji, error
 		StartCursor: "",
 		// PageSize:    0,
 	}
-	response, err := repo.queryDatabase(ctx, &query)
+	response, err := repo.queryDatabase(context.TODO(), &query)
 	if err != nil {
 		return domain.Emoji{}, err
 	}
@@ -65,14 +64,18 @@ func (repo *notionDB) Get(ctx context.Context, name string) (domain.Emoji, error
 
 	// Extract Emoji Data
 	emojiPage := response.Results[0]
-	emojiData, err := repo.extractEmojiFromPage(ctx, emojiPage)
+	emojiData, err := repo.extractEmojiFromPage(context.TODO(), emojiPage)
 	if err != nil {
 		return domain.Emoji{}, fmt.Errorf("error extracting emoji data from page: %w", err)
 	}
 	return emojiData, nil
 }
 
-func (n notionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.Page) (domain.Emoji, error) {
+func (repo notionDB) Save(emoji domain.Emoji) error {
+	return nil
+}
+
+func (repo notionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.Page) (domain.Emoji, error) {
 	emojiMap := emojiPage.Properties.(notion.DatabasePageProperties)
 
 	nameProperty, ok := emojiMap["Name"]
@@ -98,7 +101,7 @@ func (n notionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.Pag
 	// If the image URL starts with "alias:", we need to go find the ACTUAL image URL
 	if strings.HasPrefix(imageURLHolder, "alias:") {
 		aliasHolder = imageProperty.Files[0].Name
-		aliasedEmoji, err := n.Get(ctx, strings.TrimPrefix(imageURLHolder, "alias:"))
+		aliasedEmoji, err := repo.Get(strings.TrimPrefix(imageURLHolder, "alias:"))
 		if err != nil {
 			return domain.Emoji{}, fmt.Errorf(
 				"error retrieving emoji %s aliased by %s: %w",
@@ -121,16 +124,16 @@ func (n notionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.Pag
 // queryDatabase wraps the *notion.client.QueryDatabase call for our db struct.
 // It adds some useful debugger logging, (metrics handling and gathering), and (something else).
 // It does NOT modify the DatabaseQueryResponse or error, and returns them directly.
-func (n notionDB) queryDatabase(ctx context.Context, query *notion.DatabaseQuery) (notion.DatabaseQueryResponse, error) {
+func (repo notionDB) queryDatabase(ctx context.Context, query *notion.DatabaseQuery) (notion.DatabaseQueryResponse, error) {
 	start := time.Now()
 	zlog := zap.S().With(
 		"dbType", "notion",
-		"dbID", n.dbID,
+		"dbID", repo.dbID,
 		// note: this is probably a bad idea for security reasons eventually
 		"query", query,
 	)
 	zlog.Debug("querying datastore")
-	response, err := n.client.QueryDatabase(ctx, n.dbID, query)
+	response, err := repo.client.QueryDatabase(ctx, repo.dbID, query)
 	if err != nil {
 		zlog.Errorw("query failed",
 			"duration", time.Since(start),

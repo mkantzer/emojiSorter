@@ -7,6 +7,9 @@ import (
 
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
+	"github.com/mkantzer/emojiSorter/internal/core/services/emojisrv"
+	"github.com/mkantzer/emojiSorter/internal/handlers/emojihdl"
+	"github.com/mkantzer/emojiSorter/internal/repositories/emojirepo"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -62,7 +65,21 @@ func run() error {
 
 	/*
 		############################################################
-		##################### Gin CONFIG ###########################
+		################### EMOJI CONFIG ###########################
+		############################################################
+	*/
+
+	repo, err := emojirepo.NewNotionDB()
+	if err != nil {
+		return err
+	}
+	srv := emojisrv.New(repo)
+
+	hdl := emojihdl.NewHTTPHandler(srv)
+
+	/*
+		############################################################
+		##################### GIN CONFIG ###########################
 		############################################################
 	*/
 
@@ -78,6 +95,8 @@ func run() error {
 	//   - stack means whether output the stack info.
 	r.Use(ginzap.RecoveryWithZap(logger, true))
 
+	r.GET("/emoji/:name", hdl.Get)
+	r.Run(":8080")
 	return nil
 }
 

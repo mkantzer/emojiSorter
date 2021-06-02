@@ -13,11 +13,11 @@ RUN --mount=type=cache,target=$GOPATH/pkg/mod go mod download
 
 # Build server
 COPY . .
-# RUN go build -o server cmd/server/main.go
-RUN go build -o cli cmd/cli/main.go
+RUN go build -o server cmd/server/main.go
+# RUN go build -o cli cmd/cli/main.go
 
 FROM builder AS linter
-ENTRYPOINT [ "go", "fmt" ]
+ENTRYPOINT [ "go", "fmt", "./..."]
 
 FROM builder AS debugger
 ENTRYPOINT [ "dlv", "-l", ":40000", "--headless=true", "--api-version=2", "exec", "./app", "--" ] 

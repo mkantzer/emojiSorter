@@ -1,8 +1,12 @@
 package emojihdl
 
 import (
+	"errors"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mkantzer/emojiSorter/internal/core/ports"
+	"github.com/mkantzer/emojiSorter/pkg/apperrors"
 )
 
 type HTTPHandler struct {
@@ -16,8 +20,17 @@ func NewHTTPHandler(emojiService ports.EmojiService) *HTTPHandler {
 }
 
 func (hdl *HTTPHandler) Get(c *gin.Context) {
-	emoji, err := hdl.emojiService.Get(c.Param("name"))
+	name := c.Param("name")
+	if name == "" {
+		c.AbortWithStatus(http.StatusBadRequest)
+	}
+	emoji, err := hdl.emojiService.Get(name)
 	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrEmojiNotFound):
+			c.AbortWithError(404, apperrors.ErrEmojiNotFound)
+			return
+		}
 		c.AbortWithStatusJSON(500, gin.H{"message": err.Error()})
 		return
 	}

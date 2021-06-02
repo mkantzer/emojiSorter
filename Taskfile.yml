@@ -73,7 +73,7 @@ tasks:
       - Taskfile.yml
       - go.mod
       - go.sum
-      - ./**/*.go
+      - ./**/**/*.go
     cmds:
       - docker-compose build app {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
