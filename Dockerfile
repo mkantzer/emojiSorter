@@ -1,4 +1,4 @@
-FROM golang:1.15-alpine AS builder
+FROM golang:1.16-alpine AS builder
 
 # Set up build/debug env
 WORKDIR /build
