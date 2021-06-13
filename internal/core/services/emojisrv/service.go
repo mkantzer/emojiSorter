@@ -29,6 +29,14 @@ func (srv *service) Get(name string) (domain.Emoji, error) {
 	return emoji, nil
 }
 
+func (srv *service) GetAll() ([]domain.Emoji, error) {
+	emoji, err := srv.er.GetAll()
+	if err != nil {
+		return []domain.Emoji{}, fmt.Errorf("get all emoji from repostiory has failed: %w", err)
+	}
+	return emoji, nil
+}
+
 func (srv *service) Vote(name string, v domain.Vote) error {
 	emoji, err := srv.Get(name)
 	if err != nil {
@@ -44,4 +52,13 @@ func (srv *service) Vote(name string, v domain.Vote) error {
 	}
 
 	return nil
+}
+
+// Get the next emoji to vote on
+func (srv *service) Next() (domain.Emoji, error) {
+	emoji, err := srv.er.Next()
+	if err != nil {
+		return domain.Emoji{}, fmt.Errorf("get next vote from repository has failed: %w", err)
+	}
+	return emoji, nil
 }

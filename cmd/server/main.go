@@ -96,6 +96,7 @@ func run() error {
 	r.Use(ginzap.RecoveryWithZap(logger, true))
 
 	r.GET("/emoji/:name", hdl.Get)
+	r.GET("/healthz", hdl.Health)
 	r.Run(":8080")
 	return nil
 }

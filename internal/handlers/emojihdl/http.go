@@ -19,6 +19,10 @@ func NewHTTPHandler(emojiService ports.EmojiService) *HTTPHandler {
 	}
 }
 
+func (hdl *HTTPHandler) Health(c *gin.Context) {
+	c.String(200, "healthy")
+}
+
 func (hdl *HTTPHandler) Get(c *gin.Context) {
 	name := c.Param("name")
 	if name == "" {

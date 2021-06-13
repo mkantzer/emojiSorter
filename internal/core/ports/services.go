@@ -9,5 +9,7 @@ import "github.com/mkantzer/emojiSorter/internal/core/domain"
 
 type EmojiService interface {
 	Get(name string) (domain.Emoji, error)
+	GetAll() ([]domain.Emoji, error)
+	Next() (domain.Emoji, error)
 	Vote(name string, v domain.Vote) error
 }

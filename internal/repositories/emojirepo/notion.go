@@ -40,7 +40,7 @@ func NewNotionDB() (notionDB, error) {
 }
 
 func (repo notionDB) Get(name string) (domain.Emoji, error) {
-	// Query for a single emoji that fits "least number of total votes"
+	// Query for a single emoji with a given name
 	query := notion.DatabaseQuery{
 		Filter: &notion.DatabaseQueryFilter{
 			Property: "Name",
@@ -71,9 +71,104 @@ func (repo notionDB) Get(name string) (domain.Emoji, error) {
 	return emojiData, nil
 }
 
+// GetAll returns all emojis, theoretically sorted by name
+func (repo notionDB) GetAll() ([]domain.Emoji, error) {
+	start := time.Now()
+	zlog := zap.S()
+	zlog.Info("whelp, guess I gotta get all the emoji.")
+
+	// Query for all emoji
+	query := notion.DatabaseQuery{
+		Filter: &notion.DatabaseQueryFilter{},
+		Sorts: []notion.DatabaseQuerySort{
+			{
+				Property:  "Name",
+				Timestamp: "created_time",
+				Direction: "ascending",
+			},
+		},
+		StartCursor: "",
+		PageSize:    100,
+	}
+
+	response, err := repo.queryDatabase(context.TODO(), &query)
+	if err != nil {
+		return []domain.Emoji{}, err
+	}
+
+	// loop through response, and extract the emojis
+	allEmoji := []domain.Emoji{}
+	for _, page := range response.Results {
+		emojiData, err := repo.extractEmojiFromPage(context.TODO(), page)
+		if err != nil {
+			return []domain.Emoji{}, fmt.Errorf("error extracting emoji data from page id %s: %w", page.ID, err)
+		}
+		allEmoji = append(allEmoji, emojiData)
+	}
+
+	// handle pagination
+	for response.HasMore {
+		zlog.Info("query indicates more data available")
+		query.StartCursor = *response.NextCursor
+		response, err = repo.queryDatabase(context.TODO(), &query)
+		if err != nil {
+			return []domain.Emoji{}, err
+		}
+		for _, page := range response.Results {
+			emojiData, err := repo.extractEmojiFromPage(context.TODO(), page)
+			if err != nil {
+				return []domain.Emoji{}, fmt.Errorf("error extracting emoji data from page id %s: %w", page.ID, err)
+			}
+			allEmoji = append(allEmoji, emojiData)
+		}
+	}
+
+	zlog.Infow("getall complete",
+		"duration", time.Since(start),
+	)
+	return allEmoji, nil
+}
+
+// Next returns the next emoji to vote on
+func (repo notionDB) Next() (domain.Emoji, error) {
+	// Query for a single emoji with a given name
+	query := notion.DatabaseQuery{
+		Filter: &notion.DatabaseQueryFilter{},
+		Sorts: []notion.DatabaseQuerySort{{
+			Property:  "Total Votes",
+			Timestamp: "created_time",
+			Direction: "ascending",
+		}},
+		StartCursor: "",
+		PageSize:    1,
+	}
+	response, err := repo.queryDatabase(context.TODO(), &query)
+	if err != nil {
+		return domain.Emoji{}, err
+	}
+	if len(response.Results) == 0 {
+		return domain.Emoji{}, apperrors.ErrEmojiNotFound
+	}
+	if len(response.Results) > 1 {
+		return domain.Emoji{}, fmt.Errorf("found %d emoji with this name", len(response.Results))
+	}
+
+	// Extract Emoji Data
+	emojiPage := response.Results[0]
+	emojiData, err := repo.extractEmojiFromPage(context.TODO(), emojiPage)
+	if err != nil {
+		return domain.Emoji{}, fmt.Errorf("error extracting emoji data from page: %w", err)
+	}
+	return emojiData, nil
+}
+
 func (repo notionDB) Save(emoji domain.Emoji) error {
 	return nil
 }
+
+/*
+	Internal funcs for handling notion nonsenses
+*/
 
 func (repo notionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.Page) (domain.Emoji, error) {
 	emojiMap := emojiPage.Properties.(notion.DatabasePageProperties)
