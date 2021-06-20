@@ -59,7 +59,7 @@ func run() error {
 	sugar := logger.Sugar().With(
 		zap.Object("app_info", app))
 
-	zap.ReplaceGlobals(logger)
+	zap.ReplaceGlobals(sugar.Desugar())
 
 	sugar.Info("logger constrcution succeeded")
 
@@ -83,20 +83,22 @@ func run() error {
 		############################################################
 	*/
 
+	gin.SetMode("release")
 	r := gin.New()
 
 	// Add a ginzap middleware, which:
 	//   - Logs all requests, like a combined access and error log.
 	//   - Logs to stdout.
 	//   - RFC3339 with UTC time format.
-	r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
+	r.Use(ginzap.Ginzap(zap.L(), time.RFC3339, true))
 
 	// Logs all panic to error log
 	//   - stack means whether output the stack info.
-	r.Use(ginzap.RecoveryWithZap(logger, true))
+	r.Use(ginzap.RecoveryWithZap(zap.L(), false))
 
-	r.GET("/emoji/:name", hdl.Get)
 	r.GET("/healthz", hdl.Health)
+	r.GET("/api/emoji/:name", hdl.Get)
+	r.GET("/api/all", hdl.GetAll)
 	r.Run(":8080")
 	return nil
 }

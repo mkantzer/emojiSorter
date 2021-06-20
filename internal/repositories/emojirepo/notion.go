@@ -21,6 +21,7 @@ type notionDB struct {
 
 // New returns a new NotionDB struct
 func NewNotionDB() (notionDB, error) {
+	emojiCodeMap = emojiCode()
 	// create notion database client
 	notionAPIKey, ok := os.LookupEnv("NOTION_API_KEY")
 	if !ok {
@@ -79,7 +80,6 @@ func (repo notionDB) GetAll() ([]domain.Emoji, error) {
 
 	// Query for all emoji
 	query := notion.DatabaseQuery{
-		Filter: &notion.DatabaseQueryFilter{},
 		Sorts: []notion.DatabaseQuerySort{
 			{
 				Property:  "Name",
@@ -108,7 +108,9 @@ func (repo notionDB) GetAll() ([]domain.Emoji, error) {
 
 	// handle pagination
 	for response.HasMore {
-		zlog.Info("query indicates more data available")
+		zlog.Infow("query indicates more data available",
+			"count", len(allEmoji),
+		)
 		query.StartCursor = *response.NextCursor
 		response, err = repo.queryDatabase(context.TODO(), &query)
 		if err != nil {
@@ -117,6 +119,12 @@ func (repo notionDB) GetAll() ([]domain.Emoji, error) {
 		for _, page := range response.Results {
 			emojiData, err := repo.extractEmojiFromPage(context.TODO(), page)
 			if err != nil {
+				zlog.Infow("here2",
+					// "page", page,
+					"count", len(allEmoji),
+					// "query", query,
+					"problem", err,
+				)
 				return []domain.Emoji{}, fmt.Errorf("error extracting emoji data from page id %s: %w", page.ID, err)
 			}
 			allEmoji = append(allEmoji, emojiData)
@@ -196,16 +204,24 @@ func (repo notionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.
 	// If the image URL starts with "alias:", we need to go find the ACTUAL image URL
 	if strings.HasPrefix(imageURLHolder, "alias:") {
 		aliasHolder = imageProperty.Files[0].Name
-		aliasedEmoji, err := repo.Get(strings.TrimPrefix(imageURLHolder, "alias:"))
-		if err != nil {
-			return domain.Emoji{}, fmt.Errorf(
-				"error retrieving emoji %s aliased by %s: %w",
-				strings.TrimPrefix(imageURLHolder, "alias:"),
-				nameHolder,
-				err,
-			)
+
+		aliasName := strings.TrimPrefix(imageURLHolder, "alias:")
+		// check if predefined. If so, return unicode code
+		if code, ok := emojiCodeMap[":"+aliasName+":"]; ok {
+			imageURLHolder = code
+
+		} else {
+			aliasedEmoji, err := repo.Get(strings.TrimPrefix(imageURLHolder, "alias:"))
+			if err != nil {
+				return domain.Emoji{}, fmt.Errorf(
+					"error retrieving emoji %s aliased by %s: %w",
+					strings.TrimPrefix(imageURLHolder, "alias:"),
+					nameHolder,
+					err,
+				)
+			}
+			imageURLHolder = aliasedEmoji.ImageURL
 		}
-		imageURLHolder = aliasedEmoji.ImageURL
 	}
 
 	return domain.Emoji{

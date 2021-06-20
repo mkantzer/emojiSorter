@@ -41,3 +41,17 @@ func (hdl *HTTPHandler) Get(c *gin.Context) {
 
 	c.JSON(200, emoji)
 }
+
+func (hdl *HTTPHandler) GetAll(c *gin.Context) {
+	emoji, err := hdl.emojiService.GetAll()
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrEmojiNotFound):
+			c.AbortWithError(404, apperrors.ErrEmojiNotFound)
+			return
+		}
+		c.AbortWithStatusJSON(500, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(200, emoji)
+}
