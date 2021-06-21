@@ -8,7 +8,8 @@ type Emoji struct {
 	Name     string
 	ImageURL string
 	AliasFor string
-	Votes    map[Vote]uint
+	// Unicode  string
+	Votes map[Vote]uint
 }
 
 type Vote uint
