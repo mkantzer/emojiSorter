@@ -108,9 +108,35 @@ func (n NotionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.Pag
 		}
 	}
 
+	// Vote Stuff
+	voteHolder := make(map[core.Vote]uint)
+	votes := []core.Vote{
+		core.Keep,
+		core.Delete,
+		core.Transparent,
+		core.Rename,
+		core.Duplicate,
+	}
+
+	for _, v := range votes {
+		votePageProperty, ok := emojiMap[fmt.Sprintf("Votes for %s", v.String())]
+		if votePageProperty.Type == "" {
+			voteHolder[v] = uint(0)
+			continue
+		}
+		if !ok {
+			return core.Emoji{}, fmt.Errorf("returned page does not have section 'Votes for %s'", v.String())
+		}
+		if votePageProperty.Type != notion.DBPropTypeNumber {
+			return core.Emoji{}, fmt.Errorf("returned 'Votes for %s' property does not have Type %s", v.String(), notion.DBPropTypeNumber)
+		}
+		voteHolder[v] = uint(*votePageProperty.Number)
+	}
+
 	return core.Emoji{
 		Name:     nameHolder,
 		ImageURL: imageURLHolder,
 		AliasFor: aliasHolder,
+		Votes:    voteHolder,
 	}, nil
 }

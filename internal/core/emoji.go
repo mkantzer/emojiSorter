@@ -5,11 +5,11 @@ import (
 )
 
 type Emoji struct {
-	Name     string
-	ImageURL string
-	AliasFor string
+	Name     string `json:"name"`
+	ImageURL string `json:"imageurl"`
+	AliasFor string `json:"aliasfor"`
 	// Unicode  string
-	Votes map[Vote]uint
+	Votes map[Vote]uint `json:"votes"`
 }
 
 type Vote uint
@@ -20,7 +20,7 @@ const (
 	Delete
 	Transparent
 	Rename
-	Dupelicate
+	Duplicate
 	vote_end
 )
 
@@ -35,3 +35,17 @@ func (emoji Emoji) Vote(vote Vote) error {
 	}
 	return apperrors.ErrInvalidVote
 }
+
+func (v Vote) String() string {
+	return [...]string{
+		"vote_beg",
+		"Keep",
+		"Delete",
+		"Transparent",
+		"Rename",
+		"Duplicate",
+		"vote_end",
+	}[v]
+}
+
+// maybe do one of these: https://stackoverflow.com/questions/54735113/how-to-use-json-string-value-to-get-iota-value

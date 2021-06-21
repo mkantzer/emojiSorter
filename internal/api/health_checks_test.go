@@ -47,3 +47,22 @@ var _ = Describe("Health Checks", func() {
 		})
 	})
 })
+
+var _ = Describe("Hello Endpoint", func() {
+	Context("HelloServer", func() {
+		It("returns OK w/ Hello World!", func() {
+			gin.SetMode(gin.TestMode)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+			api.HelloServer(c)
+
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(w.Body).ToNot(BeNil())
+
+			body, _ := io.ReadAll(w.Body)
+			Expect(string(body)).To(Equal("Hello World!\n"))
+		})
+	})
+})

@@ -45,10 +45,24 @@ func (a *Server) Start() {
 	//   - stack means whether output the stack info.
 	r.Use(ginzap.RecoveryWithZap(a.Deps.Logger, true))
 
+	/*
+		METADATA section
+	*/
 	r.GET("/", HelloServer)
 	r.GET("/healthz", HealthCheck)
 	r.GET("/unhealthz", UnhealthCheck)
-	r.GET("/bruh", a.testLog)
+
+	/*
+		API section
+	*/
+	// r.GET("/api/emoji", a.getAllEmoji)
+	r.GET("/api/emoji/:name", a.getEmojiByName)
+	// r.POST("/api/emoji/:name", a.submitVote)
+
+	/*
+		HTML section
+	*/
+	// r.GET("/", VotePage)
 
 	a.server = &http.Server{
 		Addr:         a.Addr,
