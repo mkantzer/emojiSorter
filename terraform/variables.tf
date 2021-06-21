@@ -9,7 +9,7 @@ variable "environment" {
 
 variable "image_name" {
   type        = string
-  description = "Image name, not including the ECR prefix. Format: mkantzer/emojiSorter/orders"
+  description = "Image name, not including the ECR prefix. Format: mkantzer/emojiSorter/emojiSorter"
 }
 
 variable "image_tag" {

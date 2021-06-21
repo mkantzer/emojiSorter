@@ -34,20 +34,28 @@ tasks:
 ######### Local Tasks #######################
 
   local:setup: 
+    desc: initialize local setup
     cmds:
       - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.40.1
       - curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh -s
 
   local:lint:
-    ./bin/golangci-lint run
+    desc: run linting
+    cmds:
+      -  ./bin/golangci-lint run
 
   local:fakes:
-    go generate ./...
+    desc: generate fakes
+    cmds:
+      - go generate ./...
     
   local:test:
-    go test -cover ./...
+    desc: run tests
+    cmds: 
+      - go test -cover ./...
 
   local:build:
+    desc: build app
     deps:
       - task: local:lint
       - task: local:test
@@ -55,6 +63,7 @@ tasks:
       - go build -ldflags "-X main.gitHash={{.GIT_HASH}}" ./cmd/...
 
   local:start:
+    desc: run app with hotreloading
     cmds:
       - ./bin/air
 

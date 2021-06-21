@@ -22,10 +22,10 @@ x-app-vars:
   PORT: 8080
 
 services:
-  orders:
+  emojiSorter:
     profiles:
       - server
-    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/orders:${TAG:-local}
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/emojiSorter:${TAG:-local}
     build:
       << : *default-build
       target: server

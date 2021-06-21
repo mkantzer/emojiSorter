@@ -1,6 +1,6 @@
 # Orders Service
 
-Service for managing orders.
+Service for managing emojiSorter.
 
 ## Setup 
 
@@ -41,7 +41,7 @@ task local:test
 
 Run service:
 ```
-task local:orders:start
+task local:emojiSorter:start
 ```
 
 # Environment Variables

@@ -50,5 +50,5 @@ override.tf.json
 **/.task/*
 
 # Binaries
-orders
+server
 bin/
