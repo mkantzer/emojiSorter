@@ -36,7 +36,12 @@ func main() {
 		_ = logger.Sync() // flushes buffer, if any
 	}()
 
-	apiServer, err := initializer.ApiServer(logger)
+	database, err := initializer.NotionDatabase(logger)
+	if err != nil {
+		logger.Fatal(fmt.Errorf("problem setting up database: %w", err).Error())
+	}
+
+	apiServer, err := initializer.ApiServer(logger, database)
 	if err != nil {
 		logger.Fatal(fmt.Errorf("problem setting up api server: %v", err).Error())
 	}

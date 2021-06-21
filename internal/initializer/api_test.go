@@ -10,11 +10,14 @@ import (
 )
 
 var _ = Describe("ApiServer", func() {
+	defer GinkgoRecover()
 	logger, err := initializer.Logging("development", "hostname", "service", "hash")
 	Expect(err).To(BeNil())
+	db, err := initializer.NotionDatabase(logger)
+	Expect(err).Should(HaveOccurred())
 
 	It("should setup api server on 0.0.0.0:8080", func() {
-		server, err := initializer.ApiServer(logger)
+		server, err := initializer.ApiServer(logger, db)
 		Expect(err).To(BeNil())
 		Expect(server.Addr).To(Equal("0.0.0.0:8080"))
 	})
@@ -24,7 +27,7 @@ var _ = Describe("ApiServer", func() {
 		os.Setenv("PORT", "9001")
 		defer os.Setenv("PORT", prevPort)
 
-		server, err := initializer.ApiServer(logger)
+		server, err := initializer.ApiServer(logger, db)
 		Expect(err).To(BeNil())
 		Expect(server.Addr).To(Equal("0.0.0.0:9001"))
 	})
@@ -34,7 +37,7 @@ var _ = Describe("ApiServer", func() {
 		os.Setenv("PORT", "notanumber")
 		defer os.Setenv("PORT", prevPort)
 
-		_, err := initializer.ApiServer(logger)
+		_, err := initializer.ApiServer(logger, db)
 		Expect(err).ToNot(BeNil())
 		Expect(err.Error()).To(Equal("problem getting port: strconv.Atoi: parsing \"notanumber\": invalid syntax"))
 	})

@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/mkantzer/emojiSorter/internal/db"
 	"go.uber.org/zap"
 )
 
 type Dependencies struct {
-	Logger *zap.Logger
+	Logger   *zap.Logger
+	Database db.NotionDB
 }
 
 type Server struct {
