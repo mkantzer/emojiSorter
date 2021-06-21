@@ -25,7 +25,7 @@ type NotionDB struct {
 
 type Emojistore interface {
 	GetEmojiByName(context.Context, string) (core.Emoji, error)
-	GetAllEmoji(context.Context) ([]core.Emoji, error)
+	// GetAllEmoji(context.Context) ([]core.Emoji, error)
 	FindVoteTarget(context.Context) (core.Emoji, error)
 }
 

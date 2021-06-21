@@ -15,6 +15,7 @@ var _ = Describe("API Server", func() {
 	logger, _ := zap.NewDevelopment()
 	deps := api.Dependencies{
 		Logger: logger,
+		//  refer to a built-out mocked datastore object?
 	}
 	addr := "localhost:9001"
 

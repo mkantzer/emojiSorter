@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -14,14 +15,17 @@ import (
 var _ = Describe("Hello Endpoint", func() {
 	Context("HelloServer", func() {
 		It("returns OK w/ Hello World!", func() {
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-			res := httptest.NewRecorder()
+			gin.SetMode(gin.TestMode)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
 
-			api.HelloServer(res, req)
-			Expect(res.Code).To(Equal(http.StatusOK))
-			Expect(res.Body).ToNot(BeNil())
+			api.HelloServer(c)
 
-			body, _ := io.ReadAll(res.Body)
+			Expect(w.Code).To(Equal(http.StatusOK))
+			Expect(w.Body).ToNot(BeNil())
+
+			body, _ := io.ReadAll(w.Body)
 			Expect(string(body)).To(Equal("Hello World!\n"))
 		})
 	})

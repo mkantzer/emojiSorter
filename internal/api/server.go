@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/mkantzer/emojiSorter/internal/db"
 	"go.uber.org/zap"
 )
 
 type Dependencies struct {
 	Logger   *zap.Logger
-	Database db.NotionDB
+	Database db.Emojistore
 }
 
 type Server struct {
@@ -29,14 +30,15 @@ func NewServer(deps *Dependencies, addr string) *Server {
 }
 
 func (a *Server) Start() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", HelloServer)
-	mux.HandleFunc("/healthz", HealthCheck)
-	mux.HandleFunc("/unhealthz", UnhealthCheck)
+	r := gin.New()
+	r.GET("/", HelloServer)
+	r.GET("/healthz", HealthCheck)
+	r.GET("/unhealthz", UnhealthCheck)
+	r.GET("/bruh", a.testLog)
 
 	a.server = &http.Server{
 		Addr:         a.Addr,
-		Handler:      mux,
+		Handler:      r,
 		WriteTimeout: 30 * time.Second,
 		ReadTimeout:  30 * time.Second,
 	}

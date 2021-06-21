@@ -14,7 +14,7 @@ var _ = Describe("ApiServer", func() {
 	logger, err := initializer.Logging("development", "hostname", "service", "hash")
 	Expect(err).To(BeNil())
 	db, err := initializer.NotionDatabase(logger)
-	Expect(err).Should(HaveOccurred())
+	Expect(err).To(BeNil())
 
 	It("should setup api server on 0.0.0.0:8080", func() {
 		server, err := initializer.ApiServer(logger, db)

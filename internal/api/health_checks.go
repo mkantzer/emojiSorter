@@ -1,16 +1,21 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "This seems fine\n")
+func HealthCheck(c *gin.Context) {
+	c.String(
+		http.StatusOK,
+		"This seems fine\n",
+	)
 }
 
-func UnhealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprintf(w, "This seems Not Fine\n")
+func UnhealthCheck(c *gin.Context) {
+	c.String(
+		http.StatusInternalServerError,
+		"This seems Not Fine\n",
+	)
 }

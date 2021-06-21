@@ -19,6 +19,7 @@ vars:
 #   ECR_HOST: 597380757197.dkr.ecr.us-east-1.amazonaws.com
 dotenv:
   - ".env"
+  - ".env.secret"
 
 includes:
   tf:

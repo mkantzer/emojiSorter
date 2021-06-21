@@ -1,11 +1,11 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-func HelloServer(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Hello World!\n")
+func HelloServer(c *gin.Context) {
+	c.String(http.StatusOK, "Hello %s!\n", "World")
 }

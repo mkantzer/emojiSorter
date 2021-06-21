@@ -52,3 +52,5 @@ override.tf.json
 # Binaries
 server
 bin/
+
+.env.secret
