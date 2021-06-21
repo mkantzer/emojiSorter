@@ -1,0 +1,165 @@
+
+# https://taskfile.dev/
+version: '3'
+
+vars:
+  JSON_PRETTY: jq -R -r '. as $line | try fromjson catch $line'
+  # NOTE: docker builds produce a lot of output that devs don't really care about.
+  # Therefor, we surpress the output of any build caused by a `dep`.
+  # In the case of a failure, manually run the failed dep to get output.
+  QUIET_BUILD_PIPES: 2>&1 | grep -v '^#' | grep -v -e '^$' | grep -v '^Use'
+  # QUIET: 0
+
+
+tasks:
+  start:
+    desc: Run the app
+    deps: 
+      - task: build
+        vars: 
+          QUIET: 1
+    cmds:
+      # pretty-print any json, else just print
+      - docker-compose up --no-log-prefix -- app | {{.JSON_PRETTY}}
+
+  cli:
+    desc: Run the app as cli
+    deps:
+      - task: build:cli
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix --exit-code-from cli -- cli | {{.JSON_PRETTY}}
+
+  stop:
+    desc: Stop the application
+    cmds:
+      - docker-compose down
+
+#############################################
+############ Test / Format ##################
+
+  lint:
+    desc: Runs black and isort in container
+    deps: 
+      - task: build:linter
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix -- linter
+
+  test:
+    desc: Runs pytest in container
+    deps: 
+      - task: build:tester
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix -- tester
+
+
+#############################################
+############ Build Images !##################
+
+  build:
+    desc: Build the production images
+    deps:
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    sources:
+      - Dockerfile
+      - docker-compose.yml
+      - Taskfile.yml
+      - go.mod
+      - go.sum
+      - ./**/*.go
+    cmds:
+      - docker-compose build app {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:cli:
+    desc: Build the production images
+    deps:
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    sources:
+      - Dockerfile
+      - docker-compose.yml
+      - Taskfile.yml
+      - go.mod
+      - go.sum
+      - ./**/*.go
+    cmds:
+      - docker-compose build cli {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  # build:dev:
+  #   desc: Build the development image
+  #   deps: [build:builder]
+  #   cmds:
+  #     - docker-compose build dev-runtime {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:linter:
+    desc: Build the linting image
+    deps:
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    sources:
+      - ./*.go
+    cmds:
+      - docker-compose build -- linter {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:tester:
+    desc: Build the unit-tester image
+    deps: 
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose build tester {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:builder:
+    desc: Build the builder image
+    # deps: [build:preloader]
+    sources:
+      - Dockerfile
+      - docker-compose.yml
+      - Taskfile.yml
+      - go.mod
+      - go.sum
+    cmds:
+      - docker-compose build builder {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  # build:tester-builder:
+  #   desc: Build the tester-builder image
+  #   deps: [build:builder]
+  #   sources:
+  #     - Dockerfile
+  #     - docker-compose.yml
+  #     - Taskfile.yml
+  #     - requirements.txt
+  #     - lib/
+  #     - pytest.ini
+  #     - isort.cfg
+  #     - dev-requirements.txt
+  #   cmds:
+  #     - docker-compose build tester-builder {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  # build:preloader:
+  #   desc: Build the Preloader image
+  #   sources:
+  #     - Dockerfile
+  #     - docker-compose.yml
+  #     - Taskfile.yml
+  #     - requirements.txt
+  #   cmds:
+  #     - docker-compose build preloader {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+
+
+  cleanup:
+    desc: clean up docker environment
+    cmds:
+      - docker-compose down -v
+      - rm -rf .task

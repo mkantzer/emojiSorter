@@ -1,0 +1,61 @@
+version: "3"
+
+x-app-vars:
+  &default-app-vars
+  NOTION_API_KEY: ${NOTION_API_KEY}
+  NOTION_DB_ID: ${NOTION_DB_ID}
+  APP_VERSION: LOCAL
+
+x-build:
+  &default-build
+  context: .
+  dockerfile: Dockerfile
+  cache_from:
+    # - ${APP_NAME}/preloader:latest
+    # - ${APP_NAME}/preloader:${TAG:-local}
+    # - ${APP_NAME}/builder:latest
+    - ${APP_NAME}/builder:${TAG:-local}
+
+services:
+  app:
+    image: ${APP_NAME}/server:${TAG:-local}
+    build:
+      target: server
+      << : *default-build
+    environment: 
+      << : *default-app-vars
+    ports:
+      - 8080:8080
+
+  cli:
+    image: ${APP_NAME}/cli:${TAG:-local}
+    build:
+      target: cli
+      << : *default-build
+    environment: 
+      << : *default-app-vars
+
+
+  tester:
+    image: ${APP_NAME}/runtime:${TAG:-local}
+    build:
+      target: tester
+      << : *default-build
+
+  linter:
+    image: ${APP_NAME}/linter:${TAG:-local}
+    build:
+      target: linter
+      << : *default-build
+    volumes:
+      - ./:/build/
+
+  builder:
+    image: ${APP_NAME}/builder:${TAG:-local}
+    build:
+      target: builder
+      << : *default-build
+    environment: 
+      << : *default-app-vars
+
+

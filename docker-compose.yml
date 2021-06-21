@@ -1,61 +1,84 @@
-version: "3"
+version: "3.8"
 
-x-app-vars:
-  &default-app-vars
-  NOTION_API_KEY: ${NOTION_API_KEY}
-  NOTION_DB_ID: ${NOTION_DB_ID}
-  APP_VERSION: LOCAL
 
+# Default service build args
 x-build:
   &default-build
   context: .
   dockerfile: Dockerfile
+  args:
+    APP_NAME: ${APP_NAME}
+    ECR_HOST: ${ECR_HOST}
   cache_from:
-    # - ${APP_NAME}/preloader:latest
-    # - ${APP_NAME}/preloader:${TAG:-local}
-    # - ${APP_NAME}/builder:latest
-    - ${APP_NAME}/builder:${TAG:-local}
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:latest
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:${TAG:-local}
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:latest
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:${TAG:-local}
+
+#default application runtime vars
+x-app-vars:
+  &default-app-vars
+  ENVIRONMENT: development
+  PORT: 8080
 
 services:
-  app:
-    image: ${APP_NAME}/server:${TAG:-local}
+  orders:
+    profiles:
+      - server
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/orders:${TAG:-local}
     build:
-      target: server
       << : *default-build
+      target: server
     environment: 
       << : *default-app-vars
     ports:
-      - 8080:8080
+      - "8080:8080"
 
-  cli:
-    image: ${APP_NAME}/cli:${TAG:-local}
+  debugger:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/debugger:${TAG:-local}
     build:
-      target: cli
       << : *default-build
+      target: debugger
     environment: 
       << : *default-app-vars
+    ports:
+      - "8080:8080"
+      - "40000:40000"
 
-
-  tester:
-    image: ${APP_NAME}/runtime:${TAG:-local}
+  unit-tester:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/unit-tester:${TAG:-local}
     build:
-      target: tester
       << : *default-build
+      target: unit-tester
 
-  linter:
-    image: ${APP_NAME}/linter:${TAG:-local}
+  unit-test-debugger:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/unit-test-debugger:${TAG:-local}
     build:
-      target: linter
+      << : *default-build
+      target: unit-test-debugger
+
+  go-runner:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/runner:${TAG:-local}
+    build:
+      << : *default-build
+      target: builder
+
+  formatter:
+    image: ${APP_NAME}/formatter:${TAG:-local}
+    build:
+      target: formatter
       << : *default-build
     volumes:
       - ./:/build/
 
   builder:
-    image: ${APP_NAME}/builder:${TAG:-local}
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:${TAG:-local}
     build:
-      target: builder
       << : *default-build
-    environment: 
-      << : *default-app-vars
+      target: builder
 
-
+  preloader:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:${TAG:-local}
+    build:
+      << : *default-build
+      target: preloader
