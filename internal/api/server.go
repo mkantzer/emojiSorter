@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/mkantzer/emojiSorter/internal/db"
 	"go.uber.org/zap"
@@ -30,7 +31,20 @@ func NewServer(deps *Dependencies, addr string) *Server {
 }
 
 func (a *Server) Start() {
+	// gin.SetMode(gin.ReleaseMode)
+
 	r := gin.New()
+
+	// Add a ginzap middleware, which:
+	//   - Logs all requests, like a combined access and error log.
+	//   - Logs to stdout.
+	//   - RFC3339 with UTC time format.
+	r.Use(ginzap.Ginzap(a.Deps.Logger, time.RFC3339, true))
+
+	// Logs all panic to error log
+	//   - stack means whether output the stack info.
+	r.Use(ginzap.RecoveryWithZap(a.Deps.Logger, true))
+
 	r.GET("/", HelloServer)
 	r.GET("/healthz", HealthCheck)
 	r.GET("/unhealthz", UnhealthCheck)

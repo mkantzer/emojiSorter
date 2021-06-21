@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/dstotijn/go-notion v0.3.3
+	github.com/gin-contrib/zap v0.0.1
 	github.com/gin-gonic/gin v1.7.2
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.4.1
 	github.com/onsi/ginkgo v1.16.4
