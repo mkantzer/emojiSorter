@@ -1,4 +1,4 @@
-package emoji
+package core
 
 import (
 	"github.com/mkantzer/emojiSorter/pkg/apperrors"

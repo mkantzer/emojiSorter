@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/dstotijn/go-notion v0.3.3
+	github.com/go-delve/delve v1.6.1 // indirect
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.4.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
