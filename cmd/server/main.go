@@ -11,7 +11,7 @@ import (
 	"github.com/mkantzer/emojiSorter/internal/initializer"
 )
 
-const serviceName = "orders-service"
+const serviceName = "emojisorter-service"
 
 // Will be overwitten by build process
 var gitHash = "development"
