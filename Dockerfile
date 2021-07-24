@@ -1,43 +1,41 @@
-FROM golang:1.15-alpine AS builder
+ARG ECR_HOST
+ARG APP_NAME
+ARG TAG=local
 
-# Set up build/debug env
+# Golang fromline not available in dev account. 
+# FROM ${ECR_HOST}/golang:1.16-alpine AS preloader
+FROM 652798529812.dkr.ecr.us-east-1.amazonaws.com/golang:1.16-alpine as base
+
+ARG GIT_HASH
+
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+    curl>7.77.0-r1 \
+    git>2.30.2-r0
+
 WORKDIR /build
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 ENV GOOS=linux
-RUN go get github.com/go-delve/delve/cmd/dlv@v1
 
-#  Get dependancies before build, and cache the mod cache folder
-COPY go.mod go.sum ./
-RUN --mount=type=cache,target=$GOPATH/pkg/mod go mod download
-
-# Build server
+# Build binary
 COPY . .
-# RUN go build -o server cmd/server/main.go
-RUN go build -o cli cmd/cli/main.go
 
-FROM builder AS linter
-ENTRYPOINT [ "go", "fmt" ]
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.40.1 \
+ && curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh -s \
+ && curl -sSfL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin \
+ && go build -o bin/ github.com/go-swagger/go-swagger/cmd/swagger \
+ && go build -o bin/ -ldflags "-X main.gitHash=${GIT_HASH}" ./cmd/... 
 
-FROM builder AS debugger
-ENTRYPOINT [ "dlv", "-l", ":40000", "--headless=true", "--api-version=2", "exec", "./app", "--" ] 
+FROM base AS development
+EXPOSE 8080
+CMD [ "./bin/air" ]
 
-FROM builder AS tester
-CMD go test -v ./...
-
-FROM test as test-debugger
-CMD dlv -l :40000 --headless=true --api-version=2 test -test.v ./...
-
-FROM gcr.io/distroless/base:nonroot AS server
+FROM gcr.io/distroless/base:nonroot AS production
+# set user to nonroot
 USER nonroot
 WORKDIR /
-COPY --from=builder --chown=nonroot /build/server app
-
-ENTRYPOINT [ "./app" ]
-
-FROM gcr.io/distroless/base:nonroot AS cli
-USER nonroot
-WORKDIR /
-COPY --from=builder --chown=nonroot /build/cli app
-
-ENTRYPOINT [ "./app" ]
+COPY --from=development /build/bin/server .
+EXPOSE 8080
+CMD [ "./server" ]

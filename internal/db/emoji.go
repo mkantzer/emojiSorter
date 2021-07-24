@@ -2,55 +2,16 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/dstotijn/go-notion"
+	"github.com/mkantzer/emojiSorter/internal/core"
+	"github.com/mkantzer/emojiSorter/pkg/apperrors"
 )
 
-type Emoji struct {
-	ID       string
-	Name     string
-	ImageURL string
-	AliasFor string
-}
-
-// FindVoteTarget queries the datastore for an emoji to vote on.
-// It returns an Emoji that has the lowest number of total votes
-func (n NotionDB) FindVoteTarget(ctx context.Context) (Emoji, error) {
-	// Query for a single emoji that fits "least number of total votes"
-	query := notion.DatabaseQuery{
-		Sorts: []notion.DatabaseQuerySort{{
-			Property:  "Total Votes",
-			Direction: "descending",
-		}},
-		StartCursor: "",
-		PageSize:    1,
-	}
-
-	response, err := n.queryDatabase(ctx, &query)
-	if err != nil {
-		return Emoji{}, err
-	}
-	if len(response.Results) == 0 {
-		return Emoji{}, errors.New("did not find a vote target")
-	}
-	if len(response.Results) > 1 {
-		return Emoji{}, errors.New("found too many vote targets")
-	}
-
-	// Extract Emoji Data
-	emojiPage := response.Results[0]
-	emojiData, err := n.extractEmojiFromPage(ctx, emojiPage)
-	if err != nil {
-		return Emoji{}, fmt.Errorf("error extracting emoji data from page: %w", err)
-	}
-	return emojiData, nil
-}
-
-func (n NotionDB) GetEmojiByName(ctx context.Context, name string) (Emoji, error) {
-	// Query for a single emoji that fits "least number of total votes"
+// GetEmojiByName returns a single emoji with the given name
+func (n NotionDB) GetEmojiByName(ctx context.Context, name string) (core.Emoji, error) {
+	// Query for a single emoji with a given name
 	query := notion.DatabaseQuery{
 		Filter: &notion.DatabaseQueryFilter{
 			Property: "Name",
@@ -59,70 +20,80 @@ func (n NotionDB) GetEmojiByName(ctx context.Context, name string) (Emoji, error
 			},
 		},
 		StartCursor: "",
-		PageSize:    1,
+		// PageSize:    0,
 	}
 	response, err := n.queryDatabase(ctx, &query)
 	if err != nil {
-		return Emoji{}, err
+		return core.Emoji{}, err
 	}
 	if len(response.Results) == 0 {
-		return Emoji{}, errors.New("did not find an emoji with this name")
+		return core.Emoji{}, apperrors.ErrEmojiNotFound
 	}
 	if len(response.Results) > 1 {
-		return Emoji{}, fmt.Errorf("found %d emoji with this name", len(response.Results))
+		return core.Emoji{}, fmt.Errorf("found %d emoji with this name", len(response.Results))
 	}
 
 	// Extract Emoji Data
 	emojiPage := response.Results[0]
 	emojiData, err := n.extractEmojiFromPage(ctx, emojiPage)
 	if err != nil {
-		return Emoji{}, fmt.Errorf("error extracting emoji data from page: %w", err)
+		return core.Emoji{}, fmt.Errorf("error extracting emoji data from page: %w", err)
 	}
 	return emojiData, nil
 }
 
-func (n NotionDB) extractEmojiFromPage(ctx context.Context, emojiPage notion.Page) (Emoji, error) {
-	emojiMap := emojiPage.Properties.(notion.DatabasePageProperties)
+func (n NotionDB) GetAllEmoji(ctx context.Context) ([]core.Emoji, error) {
+	n.Deps.Logger.Debug("Whelp, guess I gotta go get all the emoji")
 
-	nameProperty, ok := emojiMap["Name"]
-	if !ok {
-		return Emoji{}, errors.New("returned page does not have section 'Name'")
-	}
-	if nameProperty.Type != notion.DBPropTypeTitle {
-		return Emoji{}, fmt.Errorf("returned 'Name' property does not have Type %s", notion.DBPropTypeTitle)
-	}
-	nameHolder := nameProperty.Title[0].PlainText
-
-	imageProperty, ok := emojiMap["Image"]
-	if !ok {
-		return Emoji{}, errors.New("returned page does not have section 'Image'")
-	}
-	if imageProperty.Type != notion.DBPropTypeFiles {
-		return Emoji{}, fmt.Errorf("returned 'Image' property does not have Type %s", notion.DBPropTypeFiles)
+	// Query for all emoji
+	query := notion.DatabaseQuery{
+		Sorts: []notion.DatabaseQuerySort{
+			{
+				Property:  "Name",
+				Timestamp: "created_time",
+				Direction: "ascending",
+			},
+		},
+		StartCursor: "",
+		PageSize:    100,
 	}
 
-	imageURLHolder := imageProperty.Files[0].Name
-	aliasHolder := ""
+	response, err := n.queryDatabase(ctx, &query)
+	if err != nil {
+		return []core.Emoji{}, err
+	}
 
-	// If the image URL starts with "alias:", we need to go find the ACTUAL image URL
-	if strings.HasPrefix(imageURLHolder, "alias:") {
-		aliasHolder = imageProperty.Files[0].Name
-		aliasedEmoji, err := n.GetEmojiByName(ctx, strings.TrimPrefix(imageURLHolder, "alias:"))
+	// loop through response, and extract the emoji
+	allEmoji := []core.Emoji{}
+
+	for _, page := range response.Results {
+		emojiData, err := n.extractEmojiFromPage(ctx, page)
 		if err != nil {
-			return Emoji{}, fmt.Errorf(
-				"error retrieving emoji %s aliased by %s: %w",
-				strings.TrimPrefix(imageURLHolder, "alias:"),
-				nameHolder,
-				err,
-			)
+			return []core.Emoji{}, fmt.Errorf("error extracting emoji data from page id %s: %w", page.ID, err)
 		}
-		imageURLHolder = aliasedEmoji.ImageURL
+		allEmoji = append(allEmoji, emojiData)
 	}
 
-	return Emoji{
-		ID:       emojiPage.ID,
-		Name:     nameHolder,
-		ImageURL: imageURLHolder,
-		AliasFor: aliasHolder,
-	}, nil
+	// handle pagination
+	for response.HasMore {
+		n.Deps.Logger.Sugar().Infow("query indicates more data available",
+			"count", len(allEmoji),
+		)
+		query.StartCursor = *response.NextCursor
+		response, err = n.queryDatabase(ctx, &query)
+		if err != nil {
+			return []core.Emoji{}, err
+		}
+		for _, page := range response.Results {
+			emojiData, err := n.extractEmojiFromPage(ctx, page)
+			if err != nil {
+				return []core.Emoji{}, fmt.Errorf("error extracting emoji data from page id %s: %w", page.ID, err)
+			}
+			allEmoji = append(allEmoji, emojiData)
+		}
+	}
+	n.Deps.Logger.Sugar().Infow("getAllEmoji complete",
+		"count", len(allEmoji),
+	)
+	return allEmoji, nil
 }

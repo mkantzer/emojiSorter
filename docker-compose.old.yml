@@ -1,0 +1,84 @@
+version: "3.8"
+
+
+# Default service build args
+x-build:
+  &default-build
+  context: .
+  dockerfile: Dockerfile
+  args:
+    APP_NAME: ${APP_NAME}
+    ECR_HOST: ${ECR_HOST}
+  cache_from:
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:latest
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:${TAG:-local}
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:latest
+    - ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:${TAG:-local}
+
+#default application runtime vars
+x-app-vars:
+  &default-app-vars
+  ENVIRONMENT: development
+  PORT: 8080
+
+services:
+  emojiSorter:
+    profiles:
+      - server
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/emojiSorter:${TAG:-local}
+    build:
+      << : *default-build
+      target: server
+    environment: 
+      << : *default-app-vars
+    ports:
+      - "8080:8080"
+
+  debugger:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/debugger:${TAG:-local}
+    build:
+      << : *default-build
+      target: debugger
+    environment: 
+      << : *default-app-vars
+    ports:
+      - "8080:8080"
+      - "40000:40000"
+
+  unit-tester:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/unit-tester:${TAG:-local}
+    build:
+      << : *default-build
+      target: unit-tester
+
+  unit-test-debugger:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/unit-test-debugger:${TAG:-local}
+    build:
+      << : *default-build
+      target: unit-test-debugger
+
+  go-runner:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/runner:${TAG:-local}
+    build:
+      << : *default-build
+      target: builder
+
+  formatter:
+    image: ${APP_NAME}/formatter:${TAG:-local}
+    build:
+      target: formatter
+      << : *default-build
+    volumes:
+      - ./:/build/
+
+  builder:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:${TAG:-local}
+    build:
+      << : *default-build
+      target: builder
+
+  preloader:
+    image: ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:${TAG:-local}
+    build:
+      << : *default-build
+      target: preloader

@@ -1,127 +1,231 @@
-
-# https://taskfile.dev/
+# https://taskfile.dev/#/usage?id=task
 version: '3'
 
 vars:
+  # Append to a `docker-compose run` cmd to pretty-print structured logging output, but also not screw up all the other output
   JSON_PRETTY: jq -R -r '. as $line | try fromjson catch $line'
   # NOTE: docker builds produce a lot of output that devs don't really care about.
   # Therefor, we surpress the output of any build caused by a `dep`.
   # In the case of a failure, manually run the failed dep to get output.
-  QUIET_BUILD_PIPES: 2>&1 | grep -v '^#' | grep -v -e '^$' | grep -v '^Use'
-  # QUIET: 0
+  QUIET_BUILD_PIPES: 2>&1 | grep -v '^#' | grep -v -e '^$' | grep -v '^Use' 
+  GIT_HASH:
+    sh: git rev-parse --short=10 HEAD
+  #  To use GIT_BRANCH, we actually need to fix it up a bit, and trim it to fit the tag format and characters. 
+  # GIT_BRANCH:
+  #   sh: git branch --show-current
 
+env:
+  # override for deploying to olddev
+  ECR_HOST: 597380757197.dkr.ecr.us-east-1.amazonaws.com
+dotenv:
+  - ".env"
+
+includes:
+  tf:
+    taskfile: ./terraform/Taskfile.yml
+    dir: ./terraform
 
 tasks:
-  start:
-    desc: Run the app
-    deps: 
-      - task: build
-        vars: 
-          QUIET: 1
+  default:
     cmds:
-      # pretty-print any json, else just print
-      - docker-compose up --no-log-prefix -- app | {{.JSON_PRETTY}}
-
-  cli:
-    desc: Run the app as cli
-    deps:
-      - task: build:cli
-        vars: 
-          QUIET: 1
-    cmds:
-      - docker-compose up --no-log-prefix --exit-code-from cli -- cli | {{.JSON_PRETTY}}
-
-  stop:
-    desc: Stop the application
-    cmds:
-      - docker-compose down
+      - task -l
 
 #############################################
-############ Test / Format ##################
+######### Local Tasks #######################
 
-  lint:
-    desc: Runs black and isort in container
-    deps: 
-      - task: build:linter
-        vars: 
-          QUIET: 1
+  setup:
+    desc: Install tools to ./bin
     cmds:
-      - docker-compose up --no-log-prefix -- linter
+      - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.40.1
+      - curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh -s
+      - go build -o bin/ github.com/go-swagger/go-swagger/cmd/swagger
+
+
+  lint: 
+    desc: Run linter
+    cmds:
+      - ./bin/golangci-lint run
+
+  fmt:
+    desc: Run gofmt
+    cmds:
+      - go fmt ./...
+
+  fakes:
+    desc: Generate fakes
+    cmds: 
+      - go generate ./...
 
   test:
-    desc: Runs pytest in container
-    deps: 
-      - task: build:tester
+    desc: Run all tests
+    cmds:
+      - go run github.com/onsi/ginkgo/ginkgo -cover ./... 
+    
+  unit-test:
+    desc: Run unit tests
+    cmds:
+      - go run github.com/onsi/ginkgo/ginkgo -cover -skip="Contract tests" ./... 
+
+  build:
+    desc: Build binaries
+    cmds:
+      - go build -o bin/ -ldflags "-X main.gitHash={{.GIT_HASH}}" ./cmd/...
+
+  start:
+    desc: Run emojisorter service under live reloader
+    cmds:
+      - ENVIRONMENT=development PORT=8080 ./bin/air
+
+  start-prod:
+    desc: Run emojisorter service under live reloader w/ ENVIRONMENT=production
+    cmds:
+      - ENVIRONMENT=production PORT=8080 ./bin/air
+
+  docs:
+    desc: Generate swagger.json and API.md
+    cmds: 
+      - ./bin/swagger generate spec -m -w cmd/server/ -o swagger.json
+      - ./bin/swagger generate markdown --output api.md
+
+#############################################
+######### App Tasks #########################
+
+  app:start:
+    desc: Run application in production mode
+    deps:
+      - task: build:server
         vars: 
           QUIET: 1
     cmds:
-      - docker-compose up --no-log-prefix -- tester
+      - docker-compose up --no-log-prefix -- server | {{.JSON_PRETTY}}
 
+  app:start:detached:
+    desc: Run application in production mode in the background.
+    deps:
+      - task: build:server
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up -d -- server 
+
+  app:logs:
+    desc: View log output from app container
+    cmds:
+      - docker-compose logs -f --no-log-prefix -- server | {{.JSON_PRETTY}}
+
+  app:stop:
+    desc: Stop the application
+    cmds:
+      - docker-compose --profile=server down
+
+  app:reload:
+    desc: Rebuild and restart the application in production mode
+    cmds:
+      - docker-compose --profile=server down -- server
+      - docker-compose up --no-log-prefix --build -- server | {{.JSON_PRETTY}}
+
+  app:reload:detached:
+    desc: Rebuild and restart the application in production mode
+    cmds:
+      - docker-compose --profile=server down
+      - docker-compose up --build -d -- server
+
+  app:debug:
+    desc: Run the app with debugging enabled
+    deps:
+      - task: build:debugger
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix -- debugger
+
+  app:test:
+    desc: Run the unit tests
+    deps:
+      - task: build:unit-tester
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix --exit-code-from unit-tester -- unit-tester
+
+  app:debug:tests:
+    desc: Run the tests with debugging enabled
+    deps:
+      - task: build:unit-test-debugger
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix --exit-code-from unit-test-debugger -- unit-test-debugger
+
+#############################################
+######### Maintenance Things ################
+
+  maint:fmt:
+    desc: Runs `go fmt ./...` inside container, and extracts files
+    deps:
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose up --no-log-prefix -- formatter
 
 #############################################
 ############ Build Images !##################
 
-  build:
-    desc: Build the production images
+  build:server:
+    desc: Build the production image
+    deps: 
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose build server {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:debugger:
+    desc: Build the debugging image
     deps:
       - task: build:builder
         vars: 
           QUIET: 1
-    sources:
-      - Dockerfile
-      - docker-compose.yml
-      - Taskfile.yml
-      - go.mod
-      - go.sum
-      - ./**/*.go
     cmds:
-      - docker-compose build app {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
-
-  build:cli:
-    desc: Build the production images
-    deps:
-      - task: build:builder
-        vars: 
-          QUIET: 1
-    sources:
-      - Dockerfile
-      - docker-compose.yml
-      - Taskfile.yml
-      - go.mod
-      - go.sum
-      - ./**/*.go
-    cmds:
-      - docker-compose build cli {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
-
-  # build:dev:
-  #   desc: Build the development image
-  #   deps: [build:builder]
-  #   cmds:
-  #     - docker-compose build dev-runtime {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
-
-  build:linter:
-    desc: Build the linting image
-    deps:
-      - task: build:builder
-        vars: 
-          QUIET: 1
-    sources:
-      - ./*.go
-    cmds:
-      - docker-compose build -- linter {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
-
-  build:tester:
+      - docker-compose build debugger {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+  
+  build:unit-tester:
     desc: Build the unit-tester image
     deps: 
       - task: build:builder
         vars: 
           QUIET: 1
     cmds:
-      - docker-compose build tester {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+      - docker-compose build unit-tester {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:unit-test-debugger:
+    desc: Build the unit-test-debugger image
+    deps: 
+      - task: build:builder
+        vars: 
+          QUIET: 1
+    cmds:
+      - docker-compose build unit-test-debugger {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
   build:builder:
     desc: Build the builder image
-    # deps: [build:preloader]
+    deps: 
+      - task: build:preloader
+        vars: 
+          QUIET: 1
+    sources:
+      - Dockerfile
+      - docker-compose.yml
+      - Taskfile.yml
+      - go.mod
+      - go.sum
+      - ./*.go
+    cmds:
+      - docker-compose build builder {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+
+  build:preloader:
+    desc: Build the Preloader image
     sources:
       - Dockerfile
       - docker-compose.yml
@@ -129,37 +233,63 @@ tasks:
       - go.mod
       - go.sum
     cmds:
-      - docker-compose build builder {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
-
-  # build:tester-builder:
-  #   desc: Build the tester-builder image
-  #   deps: [build:builder]
-  #   sources:
-  #     - Dockerfile
-  #     - docker-compose.yml
-  #     - Taskfile.yml
-  #     - requirements.txt
-  #     - lib/
-  #     - pytest.ini
-  #     - isort.cfg
-  #     - dev-requirements.txt
-  #   cmds:
-  #     - docker-compose build tester-builder {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
-
-  # build:preloader:
-  #   desc: Build the Preloader image
-  #   sources:
-  #     - Dockerfile
-  #     - docker-compose.yml
-  #     - Taskfile.yml
-  #     - requirements.txt
-  #   cmds:
-  #     - docker-compose build preloader {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
+      - docker-compose build preloader {{if .QUIET}}{{.QUIET_BUILD_PIPES}}{{end}}
 
 
+
+#############################################
+############ Push Images !###################
+
+  push:preloader:
+    desc: Push the preloader image
+    cmds: 
+      - >
+        docker tag 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:local 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:{{.GIT_HASH}}
+      - docker push ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:{{.GIT_HASH}}
+      - >
+        docker tag 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:local 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:latest
+      - docker push ${ECR_HOST}/drizlyinc/${APP_NAME}/preloader:latest
+
+  push:builder:
+    desc: Push the builder image
+    cmds: 
+      - >
+        docker tag 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:local 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:{{.GIT_HASH}}
+      - docker push ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:{{.GIT_HASH}}
+      - >
+        docker tag 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:local 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:latest
+      - docker push ${ECR_HOST}/drizlyinc/${APP_NAME}/builder:latest
+
+  push:server:
+    desc: Push the server image
+    cmds: 
+      - >
+        docker tag 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/server:local 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/server:{{.GIT_HASH}}
+      - docker push ${ECR_HOST}/drizlyinc/${APP_NAME}/server:{{.GIT_HASH}}
+      - >
+        docker tag 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/server:local 
+        ${ECR_HOST}/drizlyinc/${APP_NAME}/server:latest
+      - docker push ${ECR_HOST}/drizlyinc/${APP_NAME}/server:latest
+  
+
+
+#############################################
+############ Cleanup Tasks ##################
 
   cleanup:
-    desc: clean up docker environment
+    desc: clean up environment
     cmds:
       - docker-compose down -v
       - rm -rf .task
+      - rm -rf terraform/.terraform

@@ -1,0 +1,55 @@
+version: '3'
+
+vars:
+  ENV: old-dev
+  # ENV: old-prod
+  REGION: us-east-1
+  # REGION: us-west-2
+  GIT_HASH:
+    sh: git rev-parse --short=10 HEAD
+
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  init:
+    desc: "Initialize terraform"
+    cmds:
+      # NOTE: when changing backends, you MUST delete the .terraform folder, to avoid hitting the wrong acocunts or statefiles
+      - rm -rf .terraform
+      - terraform init -backend-config=../.drizly/terraform/{{.ENV}}/{{.REGION}}.tfbackend
+
+  plan:
+    desc: "Generate Plan"
+    cmds:
+      - >
+        terraform plan 
+        -var-file=../.drizly/terraform/{{.ENV}}/{{.REGION}}.tfvars 
+        -var-file=../.drizly/terraform/{{.ENV}}/all-regions.tfvars
+        -var 'image_tag={{.GIT_HASH}}'
+
+  apply:
+    desc: "Apply Terraform Config"
+    cmds:
+      - >
+        terraform apply 
+        -var-file=../.drizly/terraform/{{.ENV}}/{{.REGION}}.tfvars 
+        -var-file=../.drizly/terraform/{{.ENV}}/all-regions.tfvars
+        -var 'image_tag={{.GIT_HASH}}'
+
+  destroy:
+    desc: "Destroy Terraform provisioned resources"
+    cmds:
+      - > 
+        terraform destroy 
+        -var-file=../.drizly/terraform/{{.ENV}}/{{.REGION}}.tfvars 
+        -var-file=../.drizly/terraform/{{.ENV}}/all-regions.tfvars
+        -var 'image_tag={{.GIT_HASH}}'
+
+  format:
+    desc: "Run Terraform Formatting"
+    cmds:
+      - terraform fmt -recursive
+      - terraform fmt -recursive ../.drizly/terraform/

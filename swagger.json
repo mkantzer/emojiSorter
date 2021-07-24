@@ -1,0 +1,80 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "API for managing and voting on emoji\n\nSchemas: http",
+    "title": "Emoji API",
+    "version": "v1"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Returns Hello World",
+        "produces": [
+          "plain/text"
+        ],
+        "operationId": "Hello",
+        "responses": {
+          "200": {
+            "description": "Body contains \"Hello World!\""
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "description": "Returns server health status",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "healthStatus",
+        "responses": {
+          "200": {
+            "description": "healthResponse",
+            "schema": {
+              "$ref": "#/definitions/healthResponse"
+            }
+          }
+        }
+      }
+    },
+    "/unhealthz": {
+      "get": {
+        "description": "Returns a 500, useful for testing",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "unhealthStatus",
+        "responses": {
+          "500": {
+            "description": "healthResponse",
+            "schema": {
+              "$ref": "#/definitions/healthResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "healthResponse": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "reason": {
+          "description": "Optional message for error responses",
+          "type": "string",
+          "x-go-name": "Message"
+        },
+        "status": {
+          "description": "The health of the service instance",
+          "type": "string",
+          "x-go-name": "Status",
+          "example": "\"ok\" or \"error\""
+        }
+      },
+      "x-go-package": "github.com/mkantzer/emojiSorter/internal/api"
+    }
+  }
+}
