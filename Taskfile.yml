@@ -84,7 +84,7 @@ tasks:
   docs:
     desc: Generate swagger.json and API.md
     cmds: 
-      - ./bin/swagger generate spec -m -w cmd/orders/ -o swagger.json
+      - ./bin/swagger generate spec -m -w cmd/server/ -o swagger.json
       - ./bin/swagger generate markdown --output api.md
 
 #############################################

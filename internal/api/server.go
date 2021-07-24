@@ -44,8 +44,8 @@ func (s *Server) Start() {
 	chiRouter.Use(s.ZapLogger)
 
 	chiRouter.Get("/", s.HelloServer)
-	chiRouter.Get("/healthz", HealthCheck)
-	chiRouter.Get("/unhealthz", UnhealthCheck)
+	chiRouter.Get("/healthz", s.HealthCheck)
+	chiRouter.Get("/unhealthz", s.UnhealthCheck)
 
 	// By listening outside of the serve goroutine we
 	// avoid a race condition in our tests
