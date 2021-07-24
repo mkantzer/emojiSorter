@@ -23,12 +23,6 @@ type NotionDB struct {
 	client *notion.Client
 }
 
-type Emojistore interface {
-	GetEmojiByName(context.Context, string) (core.Emoji, error)
-	GetAllEmoji(context.Context) ([]core.Emoji, error)
-	FindVoteTarget(context.Context) (core.Emoji, error)
-}
-
 func NewDatabase(deps *Dependencies, dbID string, apiKey string) (NotionDB, error) {
 	emojiCodeMap = emojiCode()
 	return NotionDB{
