@@ -56,3 +56,5 @@ bin/
 
 # Temp
 tmp/
+
+.env.secret
