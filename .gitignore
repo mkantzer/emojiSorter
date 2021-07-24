@@ -54,3 +54,4 @@ server
 bin/
 
 .env.secret
+tmp/

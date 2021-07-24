@@ -2,15 +2,16 @@ package initializer
 
 import (
 	"fmt"
+
+	"github.com/mkantzer/emojiSorter/internal/api"
+
 	"os"
 	"strconv"
 
-	"github.com/mkantzer/emojiSorter/internal/api"
-	"github.com/mkantzer/emojiSorter/internal/db"
 	"go.uber.org/zap"
 )
 
-func ApiServer(logger *zap.Logger, database db.NotionDB) (*api.Server, error) {
+func ApiServer(logger *zap.Logger) (*api.Server, error) {
 	portStr := os.Getenv("PORT")
 	if portStr == "" {
 		logger.Info("PORT not set, using 8080")
@@ -22,8 +23,7 @@ func ApiServer(logger *zap.Logger, database db.NotionDB) (*api.Server, error) {
 	}
 
 	server := api.NewServer(&api.Dependencies{
-		Logger:   logger,
-		Database: database,
+		Logger: logger,
 	}, fmt.Sprintf("0.0.0.0:%d", port))
 
 	return server, nil

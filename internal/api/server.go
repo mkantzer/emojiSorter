@@ -2,18 +2,21 @@ package api
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"time"
 
-	ginzap "github.com/gin-contrib/zap"
-	"github.com/gin-gonic/gin"
-	"github.com/mkantzer/emojiSorter/internal/db"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
+	// "github.com/newrelic/go-agent/v3/newrelic"
 )
 
+const shutdownTimeout = 30 * time.Second
+
 type Dependencies struct {
-	Logger   *zap.Logger
-	Database db.Emojistore
+	Logger *zap.Logger
+	// Application *newrelic.Application
 }
 
 type Server struct {
@@ -23,6 +26,7 @@ type Server struct {
 	server *http.Server
 }
 
+// Create new server
 func NewServer(deps *Dependencies, addr string) *Server {
 	return &Server{
 		Deps: deps,
@@ -30,65 +34,52 @@ func NewServer(deps *Dependencies, addr string) *Server {
 	}
 }
 
-func (a *Server) Start() {
-	// gin.SetMode(gin.ReleaseMode)
+// Listen and server requests
+func (s *Server) Start() {
+	// mux := http.NewServeMux()
+	chiRouter := chi.NewRouter()
 
-	r := gin.New()
+	chiRouter.Use(middleware.RequestID)
+	chiRouter.Use(middleware.RealIP)
+	chiRouter.Use(s.ZapLogger)
 
-	// Add a ginzap middleware, which:
-	//   - Logs all requests, like a combined access and error log.
-	//   - Logs to stdout.
-	//   - RFC3339 with UTC time format.
-	r.Use(ginzap.Ginzap(a.Deps.Logger, time.RFC3339, true))
+	chiRouter.Get("/", s.HelloServer)
+	chiRouter.Get("/healthz", HealthCheck)
+	chiRouter.Get("/unhealthz", UnhealthCheck)
 
-	// Logs all panic to error log
-	//   - stack means whether output the stack info.
-	r.Use(ginzap.RecoveryWithZap(a.Deps.Logger, true))
+	// By listening outside of the serve goroutine we
+	// avoid a race condition in our tests
+	listener, err := net.Listen("tcp", s.Addr)
+	if err != nil {
+		s.Deps.Logger.Fatal(err.Error())
+	}
 
-	/*
-		METADATA section
-	*/
-	r.GET("/", HelloServer)
-	r.GET("/healthz", HealthCheck)
-	r.GET("/unhealthz", UnhealthCheck)
-
-	/*
-		API section
-	*/
-	// r.GET("/api/emoji", a.getAllEmoji)
-	r.GET("/api/emoji/:name", a.getEmojiByName)
-	// r.POST("/api/emoji/:name", a.submitVote)
-
-	/*
-		HTML section
-	*/
-	// r.GET("/", VotePage)
-
-	a.server = &http.Server{
-		Addr:         a.Addr,
-		Handler:      r,
+	s.server = &http.Server{
+		Addr:         s.Addr,
+		Handler:      chiRouter,
 		WriteTimeout: 30 * time.Second,
 		ReadTimeout:  30 * time.Second,
 	}
 
 	go func() {
-		err := a.server.ListenAndServe()
+		err := s.server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
-			a.Deps.Logger.Error(err.Error())
+			s.Deps.Logger.Error(err.Error())
 		}
 	}()
 }
 
-func (a *Server) Shutdown() {
-	if a.server == nil {
+// Gracefully shutdown server
+func (s *Server) Shutdown() {
+	if s.server == nil {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	err := a.server.Shutdown(ctx)
+	err := s.server.Shutdown(ctx)
 	if err != nil {
-		a.Deps.Logger.Error(err.Error())
+		s.Deps.Logger.Error(err.Error())
 	}
 }

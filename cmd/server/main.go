@@ -5,17 +5,22 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
+	"time"
 
 	"github.com/mkantzer/emojiSorter/internal/initializer"
 )
 
-const serviceName = "emojiSorter"
+const serviceName = "orders-service"
 
 // Will be overwitten by build process
 var gitHash = "development"
 
 func main() {
-	environment := os.Getenv("ENVIRONMENT")
+	// Set UTC as local TZ so our logs are in UTC
+	time.Local = time.UTC
+
+	environment := strings.ToLower(os.Getenv("ENVIRONMENT"))
 	if environment == "" {
 		log.Print("ENVIRONMENT not set, using development")
 		environment = "development"
@@ -26,7 +31,7 @@ func main() {
 		log.Fatal(fmt.Errorf("problem getting hostname: %v", err))
 	}
 
-	logger, err := initializer.Logging(environment, hostname, serviceName, gitHash)
+	logger, err := initializer.Logging(environment, hostname, serviceName, gitHash, nil)
 	if err != nil {
 		log.Fatal(fmt.Errorf("problem setting up logger: %v", err))
 	}
@@ -36,12 +41,7 @@ func main() {
 		_ = logger.Sync() // flushes buffer, if any
 	}()
 
-	database, err := initializer.NotionDatabase(logger)
-	if err != nil {
-		logger.Fatal(fmt.Errorf("problem setting up database: %w", err).Error())
-	}
-
-	apiServer, err := initializer.ApiServer(logger, database)
+	apiServer, err := initializer.ApiServer(logger)
 	if err != nil {
 		logger.Fatal(fmt.Errorf("problem setting up api server: %v", err).Error())
 	}

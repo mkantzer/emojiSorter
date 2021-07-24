@@ -3,23 +3,53 @@ package api
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/render"
 )
 
-func HelloServer(c *gin.Context) {
-	c.String(http.StatusOK, "Hello %s!\n", "World")
+const (
+	healthStatusOk    = "ok"
+	healthStatusError = "error"
+)
+
+// swagger:model
+type healthResponse struct {
+	// The health of the service instance
+	// Required: true
+	// Example: "ok" or "error"
+	Status string `json:"status"`
+	// Optional message for error responses
+	Message string `json:"reason,omitempty"`
 }
 
-func HealthCheck(c *gin.Context) {
-	c.String(
-		http.StatusOK,
-		"This seems fine\n",
-	)
+// swagger:route GET /healthz healthStatus
+//
+// Returns server health status
+//
+//     Produces:
+//     - application/json
+//
+//     Responses:
+//       200: body:healthResponse
+func (s *Server) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	render.Status(r, http.StatusOK)
+	render.JSON(w, r, healthResponse{
+		Status: healthStatusOk,
+	})
 }
 
-func UnhealthCheck(c *gin.Context) {
-	c.String(
-		http.StatusInternalServerError,
-		"This seems Not Fine\n",
-	)
+// swagger:route GET /unhealthz unhealthStatus
+//
+// Returns a 500, useful for testing
+//
+//     Produces:
+//     - application/json
+//
+//     Responses:
+//       500: body:healthResponse
+func (s *Server) UnhealthCheck(w http.ResponseWriter, r *http.Request) {
+	render.Status(r, http.StatusInternalServerError)
+	render.JSON(w, r, healthResponse{
+		Status:  healthStatusError,
+		Message: "This seems Not Fine",
+	})
 }
