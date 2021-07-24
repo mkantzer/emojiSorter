@@ -72,12 +72,12 @@ tasks:
       - go build -o bin/ -ldflags "-X main.gitHash={{.GIT_HASH}}" ./cmd/...
 
   start:
-    desc: Run orders service under live reloader
+    desc: Run emojisorter service under live reloader
     cmds:
       - ENVIRONMENT=development PORT=8080 ./bin/air
 
   start-prod:
-    desc: Run orders service under live reloader w/ ENVIRONMENT=production
+    desc: Run emojisorter service under live reloader w/ ENVIRONMENT=production
     cmds:
       - ENVIRONMENT=production PORT=8080 ./bin/air
 

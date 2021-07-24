@@ -36,6 +36,6 @@ FROM gcr.io/distroless/base:nonroot AS production
 # set user to nonroot
 USER nonroot
 WORKDIR /
-COPY --from=development /build/bin/orders .
+COPY --from=development /build/bin/server .
 EXPOSE 8080
-CMD [ "./orders" ]
+CMD [ "./server" ]

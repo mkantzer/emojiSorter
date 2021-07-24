@@ -1,51 +1,104 @@
-# Orders Service
+# Emoji Sorter Service
 
-Service for managing emojiSorter.
+Service for managing emoji.
 
 ## Setup 
 
 1. Checkout this repo
-2. Make sure `task` and Docker Desktop
+2. Make sure `task` and Docker Desktop 3+
     * https://taskfile.dev/#/installation
     * https://www.docker.com/products/docker-desktop
+3. Set new relic environment var
 
 ## Running 
 
 ### Docker
 
-TBD
-
-### Local
-
-> Requires installing the latest version of Go 1.16.x.
+> Docker Desktop version 3.0+ is required.
 
 Setup:
 ```
-task local:setup
+docker-compose build emojisorter
 ```
 
-Run lint:
+Running the EmojiSorter service:
 ```
-task local:lint
+docker-compose up
+```
+
+Unit Tests
+```
+docker-compose run emojisorter task unit-test
+```
+
+All Tests
+```
+docker-compose up -d
+docker-compose exec emojisorter task test
+```
+
+Linter
+```
+docker-compose run emojisorter task lint
+```
+
+Go format:
+```
+docker-compose run emojisorter task fmt
 ```
 
 Update/generate fakes:
 ```
-go generate ./...
+docker-compose run emojisorter task fakes
 ```
 
-Run tests:
+Generate Swagger and API docs
 ```
-task local:test
+docker-compose run emojisorter task docs
 ```
 
-Run service:
+### Local
+
+> Requires installing Go 1.16.5 on your host OS.
+
+Setup:
 ```
-task local:emojiSorter:start
+task setup
+```
+
+Running the emojisorter service:
+```
+task start
+```
+
+Running unit tests:
+```
+task test
+```
+
+Running the linter:
+```
+task lint
+```
+
+Go format:
+```
+task fmt
+```
+
+Update/generate fakes:
+```
+task fakes
+```
+
+Generate Swagger and API docs
+```
+task docs
 ```
 
 # Environment Variables
 
 * ENVIRONMENT (development) - Controls environment specific options
 * PORT (8080) - Port to run API server on
+* NEW_RELIC_LICENSE_KEY - new relic license key
 

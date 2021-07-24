@@ -2,7 +2,7 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-  bin = "./bin/orders"
+  bin = "./bin/server"
   cmd = "task unit-test && task docs && task build"
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "terraform", "bin"]

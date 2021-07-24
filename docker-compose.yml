@@ -17,7 +17,7 @@ x-app-vars:
   PORT: 8080
 
 services:
-  orders:
+  emojisorter:
     image: ${ECR_HOST}/drizlyinc/${APP_NAME}/development:${TAG:-local}
     build:
       << : *default-build
@@ -30,7 +30,7 @@ services:
       - .:/build
       - /build/bin/
 
-  orders-prod:
+  emojisorter-prod:
     profiles:
       - production
     image: ${ECR_HOST}/drizlyinc/${APP_NAME}/production:${TAG:-local}
